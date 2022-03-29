@@ -105,10 +105,10 @@ def enroll(request, course_id):
 
 # <HINT> Create a submit view to create an exam submission record for a course enrollment,
 # you may implement it based on following logic:
-         # Get user and course object, then get the associated enrollment object created when the user enrolled the course
-         # Create a submission object referring to the enrollment
-         # Collect the selected choices from exam form
-         # Add each selected choice object to the submission object
+         #Y Get user and course object, then get the associated enrollment object created when the user enrolled the course
+         #Y Create a submission object referring to the enrollment
+         #Y Collect the selected choices from exam form
+         #Y Add each selected choice object to the submission object
          # Redirect to show_exam_result with the submission id
 #def submit(request, course_id):
 
@@ -116,9 +116,16 @@ def submit(request, course_id):
     course = get_object_or_404(Course, pk=course_id)
     user = request.user
     enrollment = Enrollment.objects.get(user=user, course=course)
+    submission = Submission.objects.create(enrollment=enrollment)
     selected_choices = extract_answers(request)
-    print(selected_choices)
-    return redirect('onlinecourse:index')
+    submission.choices.set(selected_choices)
+    submission.save()
+    return HttpResponseRedirect(reverse(
+                viewname='onlinecourse:show_exam_result',
+                args=(course.id, submission.id,)
+                ))
+
+
 
 
 # <HINT> A example method to collect the selected choices from the exam form from the request object
@@ -138,7 +145,23 @@ def extract_answers(request):
         # Get the selected choice ids from the submission record
         # For each selected choice, check if it is a correct answer or not
         # Calculate the total score
-#def show_exam_result(request, course_id, submission_id):
+def show_exam_result(request, course_id, submission_id):
+    course = get_object_or_404(Course, pk=course_id)
+    submission = get_object_or_404(Submission, pk=submission_id)
+    user = request.user
+    choices = submission.choices.all()
+    total_mark, mark = 0, 0
+    for question in course.question_set.all():
+        total_mark += question.grade
+        if question.is_get_score(choices):
+            mark += question.grade
+    
+    return render(request, 'onlinecourse/exam_result_bootstrap.html', {"course":course, "choices":choices,"mark":mark, 
+        "total_mark": total_mark, 
+        "submission": submission,
+        "user": user,
+        "grade": int((mark / total_mark) * 100) })
+
 
 
 
